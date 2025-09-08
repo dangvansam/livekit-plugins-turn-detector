@@ -1,28 +1,30 @@
-# Turn detector plugin for LiveKit Agents
+# LiveKit Plugins – Turn Detector
 
-This plugin introduces end-of-turn detection for LiveKit Agents using custom models to determine when a user has finished speaking. It supports both built-in models and external inference servers.
+**`livekit-plugins-external-turn-detector`** provides end-of-turn detection for [LiveKit Agents](https://github.com/livekit/agents) using custom models to determine when a user has finished speaking.
 
-Traditional voice agents use VAD (voice activity detection) for end-of-turn detection. However, VAD models lack language understanding, often causing false positives where the agent interrupts the user before they finish speaking.
+This plugin enables **accurate conversation flow management** by leveraging language models trained specifically for turn detection, offering superior performance compared to traditional VAD-based approaches.
 
-By leveraging language models specifically trained for this task, this plugin offers a more accurate and robust method for detecting end-of-turns.
+## ✨ Features
 
-## Features
+- 🎯 **Built-in Models** — English and multilingual models that run locally
+- 🔌 **LiveKit plugin integration** — plug-and-play support for LiveKit workflows
+- 🤖 **Compatible with livekit-agents** — seamless integration with agent framework
+- 🚀 **External Server Support** — use custom models via OpenAI-compatible APIs or NVIDIA Triton
+- ⚡ **Low-latency inference** — ~10ms (English) / ~25ms (multilingual) per inference
+- 🌍 **Multilingual support** — 13+ languages in the multilingual model
+- 🔧 **Flexible backends** — choose between local inference or remote servers
 
-- **Built-in Models**: English and multilingual models that run locally
-- **External Server Support**: Use custom models via OpenAI-compatible APIs or NVIDIA Triton Inference Server
-- **Flexible Backends**: Choose between local inference or remote servers based on your needs
-- **Async/Await**: Fully asynchronous implementation for optimal performance
+## 🔧 Installation
 
-See [https://docs.livekit.io/agents/build/turns/turn-detector/](https://docs.livekit.io/agents/build/turns/turn-detector/) for more information.
-
-## Installation
-
-### Basic Installation
 ```bash
+# from PyPI
 pip install livekit-plugins-external-turn-detector
+
+# from source
+pip install git+https://github.com/dangvansam/livekit-plugins-turn-detector.git
 ```
 
-## Usage
+## 🔌 Usage
 
 ### Built-in Models
 
@@ -105,7 +107,7 @@ session = AgentSession(
 )
 ```
 
-## Running your agent
+## 🚀 Running your agent
 
 This plugin requires model files. Before starting your agent for the first time, or when building Docker images for deployment, run the following command to download the model files:
 
@@ -113,7 +115,7 @@ This plugin requires model files. Before starting your agent for the first time,
 python my_agent.py download-files
 ```
 
-## Model system requirements
+## 📊 Model system requirements
 
 ### Built-in Models
 
@@ -133,8 +135,16 @@ When using external backends, system requirements depend on your chosen configur
 - Can handle high-throughput scenarios with proper scaling
 - Recommended for production deployments with custom models
 
-## License
+## 📚 Documentation
+
+For more information, see the [official documentation](https://docs.livekit.io/agents/build/turns/turn-detector/).
+
+## 📄 License
 
 The plugin source code is licensed under the Apache-2.0 license.
 
 The end-of-turn model is licensed under the [LiveKit Model License](https://huggingface.co/livekit/turn-detector/blob/main/LICENSE).
+
+## 🙏 Acknowledgments
+
+This plugin leverages language models specifically trained for turn detection, providing more accurate conversation flow management compared to traditional VAD-based approaches.
