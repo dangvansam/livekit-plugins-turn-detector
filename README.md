@@ -17,19 +17,9 @@ See [https://docs.livekit.io/agents/build/turns/turn-detector/](https://docs.liv
 
 ## Installation
 
-### Basic Installation (Built-in models only)
+### Basic Installation
 ```bash
-pip install livekit-plugins-turn-detector
-```
-
-### With Triton Backend Support
-```bash
-pip install "livekit-plugins-turn-detector[triton]"
-```
-
-### With All Backends
-```bash
-pip install "livekit-plugins-turn-detector[all]"
+pip install livekit-plugins-external-turn-detector
 ```
 
 ## Usage
@@ -73,10 +63,9 @@ For custom models or when you need to offload inference to a dedicated server, y
 For high-performance inference with custom models:
 
 ```python
-from livekit.plugins.turn_detector.external import ExternalModel, BackendType
+from livekit.plugins.turn_detector.external import ExternalModel
 
 turn_detector = ExternalModel(
-    backend=BackendType.TRITON,
     triton_url="localhost:7001",  # Your Triton server gRPC endpoint
     triton_model="ensemble",      # Your model name in Triton
     tokenizer="dangvansam/Qwen3-0.6B-turn-detection-en",
