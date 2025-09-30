@@ -34,6 +34,7 @@ class ExternalModel(EOUModelBase):
         api_key: str | None = None,
         base_url: str | None = None,
         inference_executor=None,
+        num_user_turns: int = 3,
     ):
         """
         Initialize external turn detection model.
@@ -84,6 +85,7 @@ class ExternalModel(EOUModelBase):
                 "max_tokens": max_tokens,
                 "api_key": api_key,
                 "base_url": base_url,
+                "num_user_turns": num_user_turns,
             }
         else:
             global _triton_config
@@ -95,6 +97,7 @@ class ExternalModel(EOUModelBase):
                 "support_languages": self._support_languages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "num_user_turns": num_user_turns,
             }
 
     def _inference_method(self) -> str:
@@ -193,6 +196,7 @@ class _EUORunnerTriton(_EUORunnerBase):
             or config.get("system_prompt")
             or os.getenv("TURN_DETECTION_SYSTEM_PROMPT", default_prompt)
         )
+        self.config = config
 
     def initialize(self) -> None:
         """Initialize Triton client connection and tokenizer."""
@@ -326,9 +330,6 @@ class _EUORunnerTriton(_EUORunnerBase):
             if item["role"] == "user":
                 text_content = item["content"]
                 text_content = unicodedata.normalize("NFKC", text_content).strip()
-                # text_content = text_content.lower()
-                # for punct in ".,?!":
-                #     text_content = text_content.replace(punct, "")
                 if text_content:
                     last_user_content.insert(0, text_content)
             elif item["role"] == "assistant" and last_user_content:
@@ -339,7 +340,7 @@ class _EUORunnerTriton(_EUORunnerBase):
             messages.append({"role": "system", "content": self._system_prompt})
 
         if last_user_content:
-            last_user_content = last_user_content[:3]
+            last_user_content = last_user_content[:self.config.get("num_user_turns", 3)]
             messages.append({"role": "user", "content": " ".join(last_user_content)})
         else:
             # No user content, return 0 probability
@@ -438,6 +439,7 @@ class _EUORunnerOpenAI(_EUORunnerBase):
             or config.get("system_prompt")
             or os.getenv("TURN_DETECTION_SYSTEM_PROMPT", default_prompt)
         )
+        self.config = config
 
     def initialize(self) -> None:
         """Initialize OpenAI client."""
@@ -490,7 +492,7 @@ class _EUORunnerOpenAI(_EUORunnerBase):
             messages.append({"role": "system", "content": self._system_prompt})
 
         if last_user_content:
-            last_user_content = last_user_content[:3]
+            last_user_content = last_user_content[:self.config.get("num_user_turns", 3)]
             messages.append({"role": "user", "content": " ".join(last_user_content)})
         else:
             # No user content, return 0 probability
