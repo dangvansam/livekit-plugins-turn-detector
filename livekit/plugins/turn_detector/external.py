@@ -4,6 +4,7 @@ import json
 import os
 import time
 import unicodedata
+from typing import Literal
 
 from livekit.agents.inference_runner import _InferenceRunner
 
@@ -70,10 +71,10 @@ class ExternalModel(EOUModelBase):
         )
 
         # Load provider from environment if not specified
-        self.provider = provider or os.getenv("TURN_DETECTION_PROVIDER", "openai")
+        self._provider = provider or os.getenv("TURN_DETECTION_PROVIDER", "openai")
         self._support_languages = support_languages
 
-        if self.provider == "openai":
+        if self._provider == "openai":
             global _openai_config
             _openai_config = {
                 "model_name": model_name,
@@ -98,7 +99,7 @@ class ExternalModel(EOUModelBase):
 
     def _inference_method(self) -> str:
         """Return inference method identifier."""
-        if self.provider == "openai":
+        if self._provider == "openai":
             return _EUORunnerOpenAI.INFERENCE_METHOD
         else:
             return _EUORunnerTriton.INFERENCE_METHOD
@@ -112,6 +113,10 @@ class ExternalModel(EOUModelBase):
             return True
 
         return False
+
+    @property
+    def provider(self) -> Literal["openai", "triton"]:
+        return self._provider
 
 
 class _EUORunnerTriton(_EUORunnerBase):
@@ -137,15 +142,21 @@ class _EUORunnerTriton(_EUORunnerBase):
         config = _triton_config if _triton_config else {}
 
         self._support_languages = (
-            support_languages or
-            config.get("support_languages") or
-            os.getenv("TURN_DETECTION_SUPPORT_LANGUAGES", "").split(",")
+            support_languages
+            or config.get("support_languages")
+            or os.getenv("TURN_DETECTION_SUPPORT_LANGUAGES", "").split(",")
         )
 
         # Configuration priority: parameters > global config > environment > defaults
-        self._url = url or config.get("url") or os.getenv("TURN_DETECTION_BASE_URL", "localhost:7001")
+        self._url = (
+            url
+            or config.get("url")
+            or os.getenv("TURN_DETECTION_BASE_URL", "localhost:7001")
+        )
         self._model_name = (
-            model_name or config.get("model_name") or os.getenv("TURN_DETECTION_MODEL", "ensemble")
+            model_name
+            or config.get("model_name")
+            or os.getenv("TURN_DETECTION_MODEL", "ensemble")
         )
         self._tokenizer_name = (
             tokenizer
@@ -200,11 +211,15 @@ class _EUORunnerTriton(_EUORunnerBase):
         self._grpcclient = grpcclient
 
         try:
-            self._client = grpcclient.InferenceServerClient(url=self._url, verbose=False)
+            self._client = grpcclient.InferenceServerClient(
+                url=self._url, verbose=False
+            )
             if self._client.is_model_ready(self._model_name):
                 logger.info(f"Model {self._model_name} is ready on {self._url}")
             else:
-                logger.warning(f"Model '{self._model_name}' is not ready on {self._url}")
+                logger.warning(
+                    f"Model '{self._model_name}' is not ready on {self._url}"
+                )
         except Exception as e:
             logger.error(f"Failed to connect to Triton server: {e}")
             raise
@@ -220,7 +235,9 @@ class _EUORunnerTriton(_EUORunnerBase):
 
         # Max tokens
         max_tokens_input = self._grpcclient.InferInput("max_tokens", [1, 1], "INT32")
-        max_tokens_input.set_data_from_numpy(self._np.array([[max_tokens]], dtype=self._np.int32))
+        max_tokens_input.set_data_from_numpy(
+            self._np.array([[max_tokens]], dtype=self._np.int32)
+        )
         inputs.append(max_tokens_input)
 
         # Temperature
@@ -238,7 +255,9 @@ class _EUORunnerTriton(_EUORunnerBase):
         ]:
             inp = self._grpcclient.InferInput(name, [1, 1], dtype)
             if dtype == "FP32":
-                inp.set_data_from_numpy(self._np.array([[value]], dtype=self._np.float32))
+                inp.set_data_from_numpy(
+                    self._np.array([[value]], dtype=self._np.float32)
+                )
             else:
                 inp.set_data_from_numpy(self._np.array([[value]], dtype=self._np.int32))
             inputs.append(inp)
@@ -372,17 +391,23 @@ class _EUORunnerOpenAI(_EUORunnerBase):
         config = _openai_config if _openai_config else {}
 
         self._support_languages = (
-            support_languages or
-            config.get("support_languages") or
-            os.getenv("TURN_DETECTION_OPENAI_SUPPORT_LANGUAGES", "").split(",")
+            support_languages
+            or config.get("support_languages")
+            or os.getenv("TURN_DETECTION_OPENAI_SUPPORT_LANGUAGES", "").split(",")
         )
 
         # Configuration priority: parameters > global config > environment > defaults
         self._model_name = (
-            model_name or config.get("model_name") or os.getenv("TURN_DETECTION_MODEL", "turn-detection-model")
+            model_name
+            or config.get("model_name")
+            or os.getenv("TURN_DETECTION_MODEL", "turn-detection-model")
         )
-        self._api_key = api_key or config.get("api_key") or os.getenv("TURN_DETECTION_API_KEY")
-        self._base_url = base_url or config.get("base_url") or os.getenv("TURN_DETECTION_BASE_URL")
+        self._api_key = (
+            api_key or config.get("api_key") or os.getenv("TURN_DETECTION_API_KEY")
+        )
+        self._base_url = (
+            base_url or config.get("base_url") or os.getenv("TURN_DETECTION_BASE_URL")
+        )
 
         # Handle numeric parameters with proper type conversion
         if temperature is not None:
@@ -421,12 +446,17 @@ class _EUORunnerOpenAI(_EUORunnerBase):
             ) from e
 
         if not self._base_url:
-            raise ValueError("TURN_DETECTION_BASE_URL is required. Set TURN_DETECTION_BASE_URL environment variable or pass base_url parameter")
+            raise ValueError(
+                "TURN_DETECTION_BASE_URL is required. Set TURN_DETECTION_BASE_URL environment variable or pass base_url parameter"
+            )
 
         kwargs = {"api_key": self._api_key}
         if self._base_url:
-            kwargs["base_url"] = self._base_url.strip() + "/v1" \
-                if not self._base_url.strip().endswith("/v1") else self._base_url
+            kwargs["base_url"] = (
+                self._base_url.strip() + "/v1"
+                if not self._base_url.strip().endswith("/v1")
+                else self._base_url
+            )
 
         self._client = OpenAI(**kwargs)
         logger.info(f"OpenAI client initialized with model {self._model_name}")
@@ -475,6 +505,9 @@ class _EUORunnerOpenAI(_EUORunnerBase):
                 temperature=self._temperature,
                 max_tokens=self._max_tokens,
                 timeout=5.0,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}}
+                if "api.openai.com" not in self._base_url
+                else None,
             )
 
             result_text = response.choices[0].message.content.strip().lower()
@@ -504,4 +537,6 @@ if provider == "triton":
 elif provider == "openai":
     _InferenceRunner.register_runner(_EUORunnerOpenAI)
 else:
-    raise ValueError(f"Provider: {provider} is not valid, only support 'triton' or 'openai'.")
+    raise ValueError(
+        f"Provider: {provider} is not valid, only support 'triton' or 'openai'."
+    )
