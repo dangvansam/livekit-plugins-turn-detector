@@ -70,10 +70,10 @@ class ExternalModel(EOUModelBase):
         )
 
         # Load provider from environment if not specified
-        self._provider = provider or os.getenv("TURN_DETECTION_PROVIDER", "openai")
+        self.provider = provider or os.getenv("TURN_DETECTION_PROVIDER", "openai")
         self._support_languages = support_languages
 
-        if self._provider == "openai":
+        if self.provider == "openai":
             global _openai_config
             _openai_config = {
                 "model_name": model_name,
@@ -98,7 +98,7 @@ class ExternalModel(EOUModelBase):
 
     def _inference_method(self) -> str:
         """Return inference method identifier."""
-        if self._provider == "openai":
+        if self.provider == "openai":
             return _EUORunnerOpenAI.INFERENCE_METHOD
         else:
             return _EUORunnerTriton.INFERENCE_METHOD
