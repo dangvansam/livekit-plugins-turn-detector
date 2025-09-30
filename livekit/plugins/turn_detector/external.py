@@ -114,6 +114,9 @@ class ExternalModel(EOUModelBase):
 
         return False
 
+    async def unlikely_threshold(self, language: str | None) -> float | None:
+        return self._unlikely_threshold
+
     @property
     def provider(self) -> Literal["openai", "triton"]:
         return self._provider
