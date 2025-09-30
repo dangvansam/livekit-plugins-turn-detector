@@ -21,7 +21,7 @@ class ExternalModel(EOUModelBase):
 
     def __init__(
         self,
-        provider: str = "triton",
+        provider: str = "openai",
         url: str | None = None,
         model_name: str | None = None,
         tokenizer: str | None = None,
@@ -38,7 +38,7 @@ class ExternalModel(EOUModelBase):
         Initialize external turn detection model.
 
         Args:
-            provider: Provider type ("triton" or "openai")
+            provider: Provider type ("triton" or "openai"). Can be set via TURN_DETECTION_PROVIDER env var.
             url: Server URL (Triton gRPC URL or OpenAI base URL)
             model_name: Model name
             tokenizer: HuggingFace tokenizer name (for Triton)
@@ -50,6 +50,17 @@ class ExternalModel(EOUModelBase):
             api_key: API key (for OpenAI)
             base_url: Base URL (for OpenAI)
             inference_executor: Executor for running inference
+
+        Environment Variables:
+            TURN_DETECTION_PROVIDER: Provider type (default: "openai")
+            TURN_DETECTION_BASE_URL: Server URL (OpenAI base URL or Triton gRPC URL)
+            TURN_DETECTION_MODEL: Model name
+            TURN_DETECTION_API_KEY: API key for authentication (OpenAI only)
+            TURN_DETECTION_TEMPERATURE: Sampling temperature
+            TURN_DETECTION_MAX_TOKENS: Maximum tokens to generate
+            TURN_DETECTION_SYSTEM_PROMPT: System prompt for turn detection
+            TURN_DETECTION_TOKENIZER: HuggingFace tokenizer name (Triton only)
+            TURN_DETECTION_SUPPORT_LANGUAGES: Comma-separated language codes
         """
         super().__init__(
             model_type="external",
@@ -58,10 +69,11 @@ class ExternalModel(EOUModelBase):
             load_languages=False,
         )
 
-        self._provider = provider
+        # Load provider from environment if not specified
+        self._provider = provider or os.getenv("TURN_DETECTION_PROVIDER", "openai")
         self._support_languages = support_languages
 
-        if provider == "openai":
+        if self._provider == "openai":
             global _openai_config
             _openai_config = {
                 "model_name": model_name,
@@ -127,18 +139,18 @@ class _EUORunnerTriton(_EUORunnerBase):
         self._support_languages = (
             support_languages or
             config.get("support_languages") or
-            os.getenv("TURN_DETECTION_TRITON_SUPPORT_LANGUAGES", "").split(",")
+            os.getenv("TURN_DETECTION_SUPPORT_LANGUAGES", "").split(",")
         )
 
         # Configuration priority: parameters > global config > environment > defaults
-        self._url = url or config.get("url") or os.getenv("TURN_DETECTION_TRITON_SERVER_URL", "localhost:7001")
+        self._url = url or config.get("url") or os.getenv("TURN_DETECTION_BASE_URL", "localhost:7001")
         self._model_name = (
-            model_name or config.get("model_name") or os.getenv("TURN_DETECTION_TRITON_MODEL_NAME", "ensemble")
+            model_name or config.get("model_name") or os.getenv("TURN_DETECTION_MODEL", "ensemble")
         )
         self._tokenizer_name = (
             tokenizer
             or config.get("tokenizer")
-            or os.getenv("TURN_DETECTION_TRITON_TOKENIZER", "dangvansam/Qwen3-0.6B-turn-detection-en")
+            or os.getenv("TURN_DETECTION_TOKENIZER", "Qwen/Qwen3-0.6B")
         )
 
         # Handle numeric parameters with proper type conversion
@@ -147,14 +159,14 @@ class _EUORunnerTriton(_EUORunnerBase):
         elif config.get("temperature") is not None:
             self._temperature = config["temperature"]
         else:
-            self._temperature = float(os.getenv("TURN_DETECTION_TRITON_TEMPERATURE", "0.1"))
+            self._temperature = float(os.getenv("TURN_DETECTION_TEMPERATURE", "0.1"))
 
         if max_tokens is not None:
             self._max_tokens = max_tokens
         elif config.get("max_tokens") is not None:
             self._max_tokens = config["max_tokens"]
         else:
-            self._max_tokens = int(os.getenv("TURN_DETECTION_TRITON_MAX_TOKENS", "20"))
+            self._max_tokens = int(os.getenv("TURN_DETECTION_MAX_TOKENS", "20"))
 
         # System prompt with fallback
         default_prompt = (
@@ -165,7 +177,7 @@ class _EUORunnerTriton(_EUORunnerBase):
         self._system_prompt = (
             system_prompt
             or config.get("system_prompt")
-            or os.getenv("TURN_DETECTION_TRITON_SYSTEM_PROMPT", default_prompt)
+            or os.getenv("TURN_DETECTION_SYSTEM_PROMPT", default_prompt)
         )
 
     def initialize(self) -> None:
@@ -367,10 +379,10 @@ class _EUORunnerOpenAI(_EUORunnerBase):
 
         # Configuration priority: parameters > global config > environment > defaults
         self._model_name = (
-            model_name or config.get("model_name") or os.getenv("TURN_DETECTION_OPENAI_MODEL", "gpt-4o-mini")
+            model_name or config.get("model_name") or os.getenv("TURN_DETECTION_MODEL", "turn-detection-model")
         )
-        self._api_key = api_key or config.get("api_key") or os.getenv("OPENAI_API_KEY")
-        self._base_url = base_url or config.get("base_url") or os.getenv("OPENAI_BASE_URL")
+        self._api_key = api_key or config.get("api_key") or os.getenv("TURN_DETECTION_API_KEY")
+        self._base_url = base_url or config.get("base_url") or os.getenv("TURN_DETECTION_BASE_URL")
 
         # Handle numeric parameters with proper type conversion
         if temperature is not None:
@@ -378,14 +390,14 @@ class _EUORunnerOpenAI(_EUORunnerBase):
         elif config.get("temperature") is not None:
             self._temperature = config["temperature"]
         else:
-            self._temperature = float(os.getenv("TURN_DETECTION_OPENAI_TEMPERATURE", "0.1"))
+            self._temperature = float(os.getenv("TURN_DETECTION_TEMPERATURE", "0.1"))
 
         if max_tokens is not None:
             self._max_tokens = max_tokens
         elif config.get("max_tokens") is not None:
             self._max_tokens = config["max_tokens"]
         else:
-            self._max_tokens = int(os.getenv("TURN_DETECTION_OPENAI_MAX_TOKENS", "20"))
+            self._max_tokens = int(os.getenv("TURN_DETECTION_MAX_TOKENS", "20"))
 
         # System prompt with fallback
         default_prompt = (
@@ -396,7 +408,7 @@ class _EUORunnerOpenAI(_EUORunnerBase):
         self._system_prompt = (
             system_prompt
             or config.get("system_prompt")
-            or os.getenv("TURN_DETECTION_OPENAI_SYSTEM_PROMPT", default_prompt)
+            or os.getenv("TURN_DETECTION_SYSTEM_PROMPT", default_prompt)
         )
 
     def initialize(self) -> None:
@@ -408,12 +420,13 @@ class _EUORunnerOpenAI(_EUORunnerBase):
                 "OpenAI client not installed. Install with: pip install openai"
             ) from e
 
-        if not self._api_key:
-            raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable or pass api_key parameter")
+        if not self._base_url:
+            raise ValueError("TURN_DETECTION_BASE_URL is required. Set TURN_DETECTION_BASE_URL environment variable or pass base_url parameter")
 
         kwargs = {"api_key": self._api_key}
         if self._base_url:
-            kwargs["base_url"] = self._base_url
+            kwargs["base_url"] = self._base_url.strip() + "/v1" \
+                if not self._base_url.strip().endswith("/v1") else self._base_url
 
         self._client = OpenAI(**kwargs)
         logger.info(f"OpenAI client initialized with model {self._model_name}")
@@ -484,5 +497,11 @@ class _EUORunnerOpenAI(_EUORunnerBase):
         return json.dumps(result).encode()
 
 
-_InferenceRunner.register_runner(_EUORunnerTriton)
-_InferenceRunner.register_runner(_EUORunnerOpenAI)
+provider = os.getenv("TURN_DETECTION_PROVIDER", "openai")
+
+if provider == "triton":
+    _InferenceRunner.register_runner(_EUORunnerTriton)
+elif provider == "openai":
+    _InferenceRunner.register_runner(_EUORunnerOpenAI)
+else:
+    raise ValueError(f"Provider: {provider} is not valid, only support 'triton' or 'openai'.")
