@@ -81,6 +81,7 @@ turn_detector = ExternalModel(
     api_key="EMPTY",  # Usually "EMPTY" for vLLM or your custom key
     temperature=0.1,
     max_tokens=20,
+    timeout=1.0,
     system_prompt="You are a speaking turn-ending identifier. Your task is to identify whether the user's speaking turn is complete or not. Respond with 'end' if the user's turn is complete, or 'continue' if it is not."
 )
 
@@ -104,6 +105,7 @@ turn_detector = ExternalModel(
     tokenizer="Qwen/Qwen3-0.6B",
     temperature=0.1,
     max_tokens=20,
+    timeout=1.0,
 )
 
 session = AgentSession(
@@ -216,6 +218,7 @@ turn_detector = ExternalModel(
     tokenizer="Qwen/Qwen3-0.6B",
     temperature=0.1,
     max_tokens=20,
+    timeout=1.0,
 )
 
 session = AgentSession(
