@@ -35,6 +35,7 @@ class ExternalModel(EOUModelBase):
         base_url: str | None = None,
         inference_executor=None,
         num_user_turns: int = 3,
+        timeout: float = 1.0,
     ):
         """
         Initialize external turn detection model.
@@ -86,6 +87,7 @@ class ExternalModel(EOUModelBase):
                 "api_key": api_key,
                 "base_url": base_url,
                 "num_user_turns": num_user_turns,
+                "timeout": timeout,
             }
         else:
             global _triton_config
@@ -98,6 +100,7 @@ class ExternalModel(EOUModelBase):
                 "temperature": temperature,
                 "max_tokens": max_tokens,
                 "num_user_turns": num_user_turns,
+                "timeout": timeout,
             }
 
     def _inference_method(self) -> str:
@@ -340,7 +343,7 @@ class _EUORunnerTriton(_EUORunnerBase):
             messages.append({"role": "system", "content": self._system_prompt})
 
         if last_user_content:
-            last_user_content = last_user_content[:self.config.get("num_user_turns", 3)]
+            last_user_content = last_user_content[:self.config.get("num_user_turns", 2)]
             messages.append({"role": "user", "content": " ".join(last_user_content)})
         else:
             # No user content, return 0 probability
@@ -358,9 +361,11 @@ class _EUORunnerTriton(_EUORunnerBase):
             truncation=True,
             enable_thinking=False,
         )
-        result_text = self._run_inference_sync(prompt)
-
-        eou_probability = 1.0 if "end" in result_text else 0.0
+        try:
+            result_text = self._run_inference_sync(prompt)
+            eou_probability = 1.0 if "end" in result_text else 0.0
+        except Exception:
+            eou_probability = 0.0
 
         end_time = time.perf_counter()
 
@@ -509,7 +514,7 @@ class _EUORunnerOpenAI(_EUORunnerBase):
                 messages=messages,
                 temperature=self._temperature,
                 max_tokens=self._max_tokens,
-                timeout=5.0,
+                timeout=self.config.get("timeout", 1.0),
                 extra_body={"chat_template_kwargs": {"enable_thinking": False}}
                 if "api.openai.com" not in self._base_url
                 else None,
@@ -521,7 +526,7 @@ class _EUORunnerOpenAI(_EUORunnerBase):
         except Exception as e:
             logger.error(f"OpenAI API call failed: {e}")
             result_text = "error"
-            eou_probability = 0.5
+            eou_probability = 0.0
 
         end_time = time.perf_counter()
 
